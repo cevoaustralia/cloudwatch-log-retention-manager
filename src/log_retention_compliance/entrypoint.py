@@ -50,59 +50,63 @@ class LogManager:
 
             rule_name = rule["name"]
             rule_retention = rule.get("retentionInDays")
-            group_prefix = rule.get("logPrefix")
+            source_prefix_list = rule.get("logPrefix")
             override = rule.get("override")
             show_compliant = rule.get("showAlways") or show_all
 
             print("Processing {} ({}) - set retention to {}".format(rule_name,
-                                                                    group_prefix,
+                                                                    source_prefix_list,
                                                                     retention_name(rule_retention)))
 
-            if group_prefix:
-                pages = paginator.paginate(
-                    logGroupNamePrefix=group_prefix
-                )
-            else:
-                pages = paginator.paginate()
+            if not isinstance(source_prefix_list, list):
+                source_prefix_list = [source_prefix_list]
 
-            for response in pages:
-                for log_group in response["logGroups"]:
-                    name = log_group["logGroupName"]
-                    current_retention = log_group.get("retentionInDays")
-                    stored_bytes = log_group.get("storedBytes")
+            for group_prefix in source_prefix_list:
+                if group_prefix:
+                    pages = paginator.paginate(
+                        logGroupNamePrefix=group_prefix
+                    )
+                else:
+                    pages = paginator.paginate()
 
-                    _logger.info("Retrieved group {} [current retention {}]".format(name,
-                                                                                    retention_name(current_retention)))
+                for response in pages:
+                    for log_group in response["logGroups"]:
+                        name = log_group["logGroupName"]
+                        current_retention = log_group.get("retentionInDays")
+                        stored_bytes = log_group.get("storedBytes")
 
-                    if name in self.processed_log_groups:
-                        continue
+                        _logger.info("Retrieved group {} [current retention {}]".format(name,
+                                                                                        retention_name(current_retention)))
 
-                    self.processed_log_groups.append(name)
+                        if name in self.processed_log_groups:
+                            continue
 
-                    if not rule_retention:
-                        if show_compliant:
-                            print("   - [Compliant] {} retention {}".format(name,
-                                                                            retention_name(current_retention)))
-                    elif current_retention == rule_retention:
-                        if show_compliant:
-                            print("   - [Compliant] {} retention {}".format(name,
-                                                                            retention_name(current_retention)))
-                    else:
-                        if not current_retention or override:
-                            compliant = False
-                            print("   - {}Updating retention on {} from {} to {}".format("" if update else "[Not Compliant] ",
-                                                                                         name,
-                                                                                         retention_name(current_retention),
-                                                                                         retention_name(rule_retention)))
-                            if update:
-                                self.client.put_retention_policy(
-                                    logGroupName=name,
-                                    retentionInDays=rule_retention
-                                )
+                        self.processed_log_groups.append(name)
+
+                        if not rule_retention:
+                            if show_compliant:
+                                print("   - [Compliant] {} retention {}".format(name,
+                                                                                retention_name(current_retention)))
+                        elif current_retention == rule_retention:
+                            if show_compliant:
+                                print("   - [Compliant] {} retention {}".format(name,
+                                                                                retention_name(current_retention)))
                         else:
-                            print("   - [Compliant] Retention modified on {} from {} to {}".format(name,
-                                                                                                   retention_name(current_retention),
-                                                                                                   retention_name(rule_retention)))
+                            if not current_retention or override:
+                                compliant = False
+                                print("   - {}Updating retention on {} from {} to {}".format("" if update else "[Not Compliant] ",
+                                                                                             name,
+                                                                                             retention_name(current_retention),
+                                                                                             retention_name(rule_retention)))
+                                if update:
+                                    self.client.put_retention_policy(
+                                        logGroupName=name,
+                                        retentionInDays=rule_retention
+                                    )
+                            else:
+                                print("   - [Compliant] Retention modified on {} from {} to {}".format(name,
+                                                                                                       retention_name(current_retention),
+                                                                                                       retention_name(rule_retention)))
 
             print()
 

@@ -51,6 +51,8 @@ The format of the `config.yml` file is as follows:
 4. **override** - optional - if set will require the exact retentionInDays values to be compliant, otherwise any log retention is considered compliant - default: false
 5. **showAlways** - optional - when set, will show all log groups that match irrespective of their compliance - default: false
 
+Optionally the **logPrefix** can be an array of patterns to be collected into the matching group.
+
 Example::
 
     retentionPatterns:
@@ -63,6 +65,13 @@ Example::
       - name: AWS Glue Crawlers
         logPrefix: /aws-glue/crawlers
         retentionInDays: 14
+
+      - name: Specific application lambda logs
+        logPrefix:
+         - /aws/lambda/Application1
+         - /aws/lambda/Application2
+         - /aws/lambda/Application3
+        retentionInDays: 45
 
       - name: Lambda logs
         logPrefix: /aws/lambda
