@@ -2,6 +2,11 @@
 cloudwatch-log-retention-manager
 ================================
 
+.. image:: https://img.shields.io/pypi/v/cloudwatch-log-retention-manager.svg
+   :target: `PyPI link`_
+
+.. _PyPI link: https://pypi.org/project/cloudwatch-log-retention-manager
+
 
 CloudWatch Logs Retention Manager is a configurable tool that can be used to validate or enforce CloudWatch log retention rules.
 
