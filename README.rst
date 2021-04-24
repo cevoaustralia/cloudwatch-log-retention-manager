@@ -55,21 +55,6 @@ Example::
         override: true
         showAlways: true
 
-**IMPORTANT Note:** For each run a log group will only be processed by a single control - the first control to process the log group will be the active one, if subsequent patterns are to match that same log group it will be ignored.
-
-
-
-Examples
-========
-
-Some example config files.
-
-Simple retention pattern
-------------------------
-
-::
-
-    retentionPatterns:
       - name: AWS Glue Crawlers
         logPrefix: /aws-glue/crawlers
         retentionInDays: 14
@@ -89,6 +74,29 @@ Simple retention pattern
       - name: All remaining log groups
         showAlways: true
         retentionInDays: 90
+
+**IMPORTANT Note:** For each run a log group will only be processed by a single control - the first control to process the log group will be the active one, if subsequent patterns are to match that same log group it will be ignored.
+
+
+
+Examples
+========
+
+Some example config files.
+
+Simple retention pattern
+------------------------
+
+::
+
+    retentionPatterns:
+      - name: AWS Glue Crawlers
+        logPrefix: /aws-glue/crawlers
+        retentionInDays: 14
+
+      - name: CloudFront Lambda Function logs
+        logPrefix: /aws/cloudfront/LambdaEdge
+        retentionInDays: 30
 
 This configuration will ensure that all glue-crawler and lambdaedge function logs have a retention set, when applied will set 15 and 30 days respectivly.
 
