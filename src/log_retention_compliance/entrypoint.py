@@ -66,17 +66,16 @@ class LogManager:
                 pages = paginator.paginate()
 
             for response in pages:
-                pass
                 for log_group in response["logGroups"]:
-
                     name = log_group["logGroupName"]
                     current_retention = log_group.get("retentionInDays")
+                    stored_bytes = log_group.get("storedBytes")
 
                     _logger.info("Retrieved group {} [current retention {}]".format(name,
                                                                                     retention_name(current_retention)))
 
                     if name in self.processed_log_groups:
-                        break
+                        continue
 
                     self.processed_log_groups.append(name)
 
