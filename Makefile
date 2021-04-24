@@ -1,6 +1,9 @@
 clean:
 	tox -e clean
 
+currentversion:
+	git describe --dirty --tags --long --first-parent
+
 build:
 	tox -e build  # to build your package distribution
 
