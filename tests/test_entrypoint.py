@@ -1,19 +1,16 @@
 import pytest
 
-from log_retention_compliance.skeleton import fib, main
+from log_retention_compliance.entrypoint import retention_name, main, LogManager
 
 __author__ = "Steve Mactaggart"
 __copyright__ = "Steve Mactaggart"
 __license__ = "MIT"
 
 
-def test_fib():
+def test_retention_name():
     """API Tests"""
-    assert fib(1) == 1
-    assert fib(2) == 1
-    assert fib(7) == 13
-    with pytest.raises(AssertionError):
-        fib(-10)
+    assert retention_name(None) == "blart"
+    assert retention_name(2) == "bling"
 
 
 def test_main(capsys):

@@ -2,4 +2,4 @@
 Contributors
 ============
 
-* Steve Mactaggart <steve@whitesquaresoft.com>
+* Steve Mactaggart <steve.macctaggart@cevo.com.au>
