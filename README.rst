@@ -39,19 +39,21 @@ The format of the `config.yml` file is as follows:
 
 * A single root object names retentionPatterns
 * An array of child objects consisting of the following attributes:
-** **name** - mandatory - names a section of log groups to be processed
-** **logPrefix** - optional - the pattern of logs to apply the group to - default: all logs
-** **retentionInDays** - optional - the log retention period to set - default: Forever
-** **override** - optional - if set will require the exact retentionInDays values to be compliant, otherwise any log retention is considered compliant - default: false
-** **showAlways** - optional - when set, will show all log groups that match irrespective of their compliance - default: false
+
+1. **name** - mandatory - names a section of log groups to be processed
+2. **logPrefix** - optional - the pattern of logs to apply the group to - default: all logs
+3. **retentionInDays** - optional - the log retention period to set - default: Forever
+4. **override** - optional - if set will require the exact retentionInDays values to be compliant, otherwise any log retention is considered compliant - default: false
+5. **showAlways** - optional - when set, will show all log groups that match irrespective of their compliance - default: false
 
 Example::
 
-  - name: CodeBuild jobs
-    logPrefix: /aws/codebuild/
-    retentionInDays: 14
-    override: true
-
+    retentionPatterns:
+      - name: CodeBuild jobs
+        logPrefix: /aws/codebuild/
+        retentionInDays: 14
+        override: true
+        showAlways: true
 
 **IMPORTANT Note:** For each run a log group will only be processed by a single control - the first control to process the log group will be the active one, if subsequent patterns are to match that same log group it will be ignored.
 
@@ -72,10 +74,21 @@ Simple retention pattern
         logPrefix: /aws-glue/crawlers
         retentionInDays: 14
 
-      - name: CloudFront Lambda Function logs
-        logPrefix: /aws/cloudfront/LambdaEdge
+      - name: Lambda logs
+        logPrefix: /aws/lambda
         retentionInDays: 30
 
+      - name: API Gateway access logs
+        logPrefix: /aws/api-gateway/
+        retentionInDays: 120
+
+      - name: API Gateway Execution Logs
+        logPrefix: API-Gateway-Execution-Logs
+        retentionInDays: 120
+
+      - name: All remaining log groups
+        showAlways: true
+        retentionInDays: 90
 
 This configuration will ensure that all glue-crawler and lambdaedge function logs have a retention set, when applied will set 15 and 30 days respectivly.
 
