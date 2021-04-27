@@ -20,7 +20,7 @@ Install ``cwlrm`` through pip and create a ``config.yml`` file within your proje
 ::
 
     ➜ cwlrm --help
-    usage: cwlrm [-h] [--version] [-u] [-c CONFIGFILE] [-s] [-v] [-vv]
+    usage: cwlrm [-h] [--version] [-u] [-c CONFIGFILE] [-s] [-sc] [-ic] [-v] [-vv]
 
     CloudWatch logs retention manager
 
@@ -31,6 +31,9 @@ Install ``cwlrm`` through pip and create a ``config.yml`` file within your proje
       -c CONFIGFILE, --config CONFIGFILE
                             location of config.yaml
       -s, --show_all        show all log groups in filter
+      -sc, --show_cost      total cost per groups
+      -ic, --show_individual_cost
+                            show storage cost for each log group in filter
       -v, --verbose         set loglevel to INFO
       -vv, --very-verbose   set loglevel to DEBUG
 

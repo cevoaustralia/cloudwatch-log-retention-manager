@@ -12,6 +12,31 @@ __license__ = "MIT"
 
 _logger = logging.getLogger(__name__)
 
+# Prices last updated 2021-04-27 (see updatepricing.py for how to update)
+REGION_COSTS = {
+    'ap-northeast-1': 0.033,
+    'af-south-1': 0.036,
+    'eu-central-1': 0.0324,
+    'us-west-1': 0.033,
+    'eu-south-1': 0.032,
+    'us-east-1': 0.03,
+    'eu-west-2': 0.0315,
+    'sa-east-1': 0.0408,
+    'ap-northeast-2': 0.0314,
+    'eu-north-1': 0.028,
+    'ca-central-1': 0.033,
+    'eu-west-1': 0.03,
+    'ap-south-1': 0.03,
+    'us-west-2': 0.03,
+    'ap-southeast-1': 0.03,
+    'ap-southeast-2': 0.033,
+    'ap-east-1': 0.03,
+    'ap-northeast-3': 0.033,
+    'us-east-2': 0.03,
+    'eu-west-3': 0.0315,
+    'me-south-1': 0.03
+}
+
 
 # ---- Python API ----
 # The functions defined in this section can be imported by users in their
@@ -23,14 +48,38 @@ def retention_name(rule_retention):
     return "{} days".format(rule_retention) if rule_retention else "Forever"
 
 
+def format_bytes(size):
+    # 2**10 = 1024
+    power = 2**10
+    n = 0
+    power_labels = {0 : '', 1: 'kilo', 2: 'mega', 3: 'giga', 4: 'tera'}
+    while size > power:
+        size /= power
+        n += 1
+    return size, power_labels[n]+'bytes'
+
+
 class LogManager:
 
     processed_log_groups = []
     config = None
+    region_cost = None
 
     def __init__(self) -> None:
         super().__init__()
         self.client = boto3.client('logs')
+        self.region = boto3.session.Session().region_name
+
+        if not self.region_cost:
+            if self.region not in REGION_COSTS:
+                print("[WARNING] Unable to resolve CloudWatch logs pricing for '{}', defaulting to 'us-east-1' - "
+                      "cost calculations may not be accurate.".format(self.region))
+                self.region_cost = REGION_COSTS['us-east-1']
+            else:
+                self.region_cost = REGION_COSTS[self.region]
+
+    def calculate_cost(self, rule_bytes):
+        return self.region_cost * rule_bytes / (1024 * 1204 * 1024)
 
     def read_config(self, configfile):
 
@@ -41,10 +90,11 @@ class LogManager:
 
         _logger.info("Loaded {} log group retention rules".format(len(self.config["retentionPatterns"])))
 
-    def execute(self, update=False, show_all=False):
+    def execute(self, update=False, show_all=False, show_cost=True, show_individual_cost=True):
 
         compliant = True
 
+        total_bytes = 0
         paginator = self.client.get_paginator('describe_log_groups')
         for rule in self.config["retentionPatterns"]:
 
@@ -57,6 +107,8 @@ class LogManager:
             print("Processing {} ({}) - set retention to {}".format(rule_name,
                                                                     source_prefix_list,
                                                                     retention_name(rule_retention)))
+
+            rule_bytes = 0
 
             if not isinstance(source_prefix_list, list):
                 source_prefix_list = [source_prefix_list]
@@ -75,40 +127,68 @@ class LogManager:
                         current_retention = log_group.get("retentionInDays")
                         stored_bytes = log_group.get("storedBytes")
 
-                        _logger.info("Retrieved group {} [current retention {}]".format(name,
-                                                                                        retention_name(current_retention)))
+                        _logger.info("Retrieved group {} [current retention {}] - {} bytes".format(name,
+                                                                                                   retention_name(current_retention),
+                                                                                                   stored_bytes))
 
                         if name in self.processed_log_groups:
                             continue
 
+                        rule_bytes += stored_bytes
+                        total_bytes += stored_bytes
+
                         self.processed_log_groups.append(name)
+
+                        log_bytes_calc = format_bytes(stored_bytes)
+                        log_cost = self.calculate_cost(stored_bytes)
+                        cost = ""
+                        if show_individual_cost:
+                            cost = " ({:.2f} {} - ${:.2f}/month)".format(log_bytes_calc[0], log_bytes_calc[1], log_cost)
 
                         if not rule_retention:
                             if show_compliant:
-                                print("   - [Compliant] {} retention {}".format(name,
-                                                                                retention_name(current_retention)))
+                                print("   - [Compliant] {} retention {}{}".format(name,
+                                                                                  retention_name(current_retention),
+                                                                                  cost))
                         elif current_retention == rule_retention:
                             if show_compliant:
-                                print("   - [Compliant] {} retention {}".format(name,
-                                                                                retention_name(current_retention)))
+                                print("   - [Compliant] {} retention {}{}".format(name,
+                                                                                  retention_name(current_retention),
+                                                                                  cost))
                         else:
                             if not current_retention or override:
                                 compliant = False
-                                print("   - {}Updating retention on {} from {} to {}".format("" if update else "[Not Compliant] ",
-                                                                                             name,
-                                                                                             retention_name(current_retention),
-                                                                                             retention_name(rule_retention)))
+                                print("   - {}Updating retention on {} from {} to {}{}".format("" if update else "[Not Compliant] ",
+                                                                                               name,
+                                                                                               retention_name(current_retention),
+                                                                                               retention_name(rule_retention),
+                                                                                               cost))
                                 if update:
                                     self.client.put_retention_policy(
                                         logGroupName=name,
                                         retentionInDays=rule_retention
                                     )
                             else:
-                                print("   - [Compliant] Retention modified on {} from {} to {}".format(name,
-                                                                                                       retention_name(current_retention),
-                                                                                                       retention_name(rule_retention)))
+                                print("   - [Compliant] Retention modified on {} from {} to {}{}".format(name,
+                                                                                                         retention_name(current_retention),
+                                                                                                         retention_name(rule_retention),
+                                                                                                         cost))
+
+            if show_cost:
+                rule_bytes_calc = format_bytes(rule_bytes)
+                rule_cost = self.calculate_cost(rule_bytes)
+                print("Total log groups size {:.2f} {} - ${:.2f}/month".format(rule_bytes_calc[0],
+                                                                               rule_bytes_calc[1],
+                                                                               rule_cost))
 
             print()
+
+        if show_cost:
+            total_bytes_calc = format_bytes(total_bytes)
+            total_cost = self.calculate_cost(total_bytes)
+            print("Total CloudWatch logs size {:.2f} {} - ${:.2f}/month".format(total_bytes_calc[0],
+                                                                                total_bytes_calc[1],
+                                                                                total_cost))
 
         return compliant
 
@@ -137,6 +217,9 @@ def parse_args(args):
     parser.add_argument("-u", "--update", dest="update", help="update settings in AWS", default=False, action="store_true")
     parser.add_argument("-c", "--config", dest="configfile", help="location of config.yaml", default="config.yml")
     parser.add_argument("-s", "--show_all", dest="show_all", help="show all log groups in filter", default=False, action="store_true")
+    parser.add_argument("-sc", "--show_cost", dest="show_cost", help="total cost per groups", default=False, action="store_true")
+    parser.add_argument("-ic", "--show_individual_cost", dest="show_individual_cost", help="show storage cost for each log group in filter", default=False, action="store_true")
+
     parser.add_argument(
         "-v",
         "--verbose",
@@ -184,7 +267,10 @@ def main(args):
     runner = LogManager()
 
     runner.read_config(args.configfile)
-    compliant = runner.execute(update=args.update, show_all=args.show_all)
+    compliant = runner.execute(update=args.update,
+                               show_all=args.show_all,
+                               show_cost=args.show_cost,
+                               show_individual_cost=args.show_individual_cost)
 
     if not args.update and not compliant:
         exit(1)
